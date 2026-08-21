@@ -1,23 +1,39 @@
 const N8N_BASE = 'https://n8n.gogolop.com/webhook';
 
-async function proxy(targetPath, request) {
+async function fetchOnce(targetPath, request) {
   const init = {
     method: request.method,
-    headers: {
-      'Content-Type': 'application/json',
-      // Force n8n/nginx to skip compression entirely. Compressed responses
-      // to this origin have been getting corrupted to empty bodies for
-      // real browser-style clients; requesting identity avoids that path.
-      'Accept-Encoding': 'identity',
-    },
+    headers: { 'Content-Type': 'application/json' },
   };
   if (request.method === 'POST') {
     init.body = await request.text();
   }
   const upstream = await fetch(N8N_BASE + targetPath, init);
   const buf = await upstream.arrayBuffer();
-  return new Response(buf, {
-    status: upstream.status,
+  return { status: upstream.status, buf };
+}
+
+async function proxy(targetPath, request) {
+  // n8n's webhook responses are intermittently empty-bodied even on a real
+  // 200 (a flake in its chunked-response handling, not client-specific).
+  // Retry a few times whenever that happens before giving up.
+  let result = await fetchOnce(targetPath, request);
+  let attempts = 1;
+  while (result.buf.byteLength === 0 && attempts < 4) {
+    await new Promise((r) => setTimeout(r, 200 * attempts));
+    result = await fetchOnce(targetPath, request);
+    attempts += 1;
+  }
+
+  if (result.buf.byteLength === 0) {
+    return new Response(
+      JSON.stringify({ success: false, message: 'The server did not respond properly after several tries. Please try again.' }),
+      { status: 502, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } }
+    );
+  }
+
+  return new Response(result.buf, {
+    status: result.status,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store',
