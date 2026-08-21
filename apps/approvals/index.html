@@ -12,160 +12,16 @@
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" href="icon.png">
 <style>
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  body {
-    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: #0f172a; color: #e2e8f0; min-height: 100vh; padding-bottom: 40px;
-  }
-  header {
-    position: sticky; top: 0; z-index: 10; background: #0f172a; padding: 18px 16px 14px;
-    border-bottom: 1px solid #1e293b; display: flex; align-items: center; justify-content: space-between;
-  }
-  header h1 { font-size: 18px; margin: 0; font-weight: 700; }
-  #refreshBtn {
-    background: #1e293b; color: #e2e8f0; border: none; border-radius: 20px; padding: 8px 14px;
-    font-size: 13px; font-weight: 600;
-  }
-  #refreshBtn:active { background: #334155; }
-  main { padding: 14px; }
-  .empty { text-align: center; color: #64748b; margin-top: 60px; font-size: 15px; }
-  .card {
-    background: #1e293b; border-radius: 14px; padding: 16px; margin-bottom: 14px;
-    border: 1px solid #334155; animation: fadeIn .25s ease;
-  }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-  .card .source {
-    display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .04em; color: #93c5fd; background: #1e3a5f; padding: 3px 8px; border-radius: 6px; margin-bottom: 8px;
-  }
-  .card h2 { font-size: 16px; margin: 0 0 8px; font-weight: 700; color: #f8fafc; }
-  .card .body {
-    font-size: 14px; line-height: 1.5; color: #cbd5e1; white-space: pre-wrap;
-    max-height: 200px; overflow-y: auto; margin-bottom: 14px; padding-right: 4px;
-  }
-  .btnrow { display: flex; gap: 10px; }
-  .btn { flex: 1; padding: 12px; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; }
-  .btn.approve { background: #16a34a; color: white; }
-  .btn.approve:active { background: #15803d; }
-  .btn.reject { background: #334155; color: #f1f5f9; }
-  .btn.reject:active { background: #475569; }
-  .btn:disabled { opacity: .5; }
-  .result { margin-top: 10px; font-size: 13px; padding: 10px; border-radius: 8px; }
-  .result.ok { background: #052e1a; color: #4ade80; }
-  .result.err { background: #450a0a; color: #f87171; }
-  .spinner {
-    width: 16px; height: 16px; border: 2px solid #64748b; border-top-color: #e2e8f0;
-    border-radius: 50%; display: inline-block; animation: spin .7s linear infinite; vertical-align: middle;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .toast {
-    position: fixed; bottom: 20px; left: 16px; right: 16px; background: #1e293b; color: #e2e8f0;
-    padding: 12px 16px; border-radius: 10px; font-size: 13px; text-align: center; border: 1px solid #334155;
-    opacity: 0; transition: opacity .3s; pointer-events: none;
-  }
-  .toast.show { opacity: 1; }
-  footer { text-align: center; margin-top: 30px; }
-  footer a { color: #475569; font-size: 12px; text-decoration: none; }
+  html, body { margin: 0; padding: 0; height: 100%; background: #0f172a; }
+  iframe { border: none; width: 100%; height: 100vh; display: block; }
 </style>
 </head>
 <body>
-<header>
-  <h1>Approvals</h1>
-  <button id="refreshBtn">Refresh</button>
-</header>
-<main id="main">
-  <div class="empty">Loading...</div>
-</main>
-<div class="toast" id="toast"></div>
+<iframe src="https://n8n.gogolop.com/webhook/approval-app" title="GoRent Approvals"></iframe>
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(function(){});
 }
-
-var API_ROOT = 'https://n8n.gogolop.com/webhook';
-var mainEl = document.getElementById('main');
-var toastEl = document.getElementById('toast');
-
-function showToast(msg) {
-  toastEl.textContent = msg;
-  toastEl.classList.add('show');
-  setTimeout(function () { toastEl.classList.remove('show'); }, 3200);
-}
-
-function escapeHtml(s) {
-  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
-    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-  });
-}
-
-function render(items) {
-  if (!items.length) {
-    mainEl.innerHTML = '<div class="empty">Nothing waiting on you right now.</div>';
-    return;
-  }
-  mainEl.innerHTML = items.map(function (it) {
-    return '' +
-      '<div class="card" data-id="' + it.id + '">' +
-        '<span class="source">' + escapeHtml(it.source || 'general') + '</span>' +
-        '<h2>' + escapeHtml(it.title) + '</h2>' +
-        '<div class="body">' + escapeHtml(it.body) + '</div>' +
-        '<div class="btnrow">' +
-          '<button class="btn approve" data-action="approve">Approve</button>' +
-          '<button class="btn reject" data-action="reject">Reject</button>' +
-        '</div>' +
-        '<div class="resultSlot"></div>' +
-      '</div>';
-  }).join('');
-}
-
-function loadPending() {
-  return fetch(API_ROOT + '/approval-pending', { cache: 'no-store' })
-    .then(function (r) { return r.json(); })
-    .then(function (data) { render(data.items || []); })
-    .catch(function () {
-      mainEl.innerHTML = '<div class="empty">Could not reach the server. Tap Refresh to try again.</div>';
-    });
-}
-
-mainEl.addEventListener('click', function (e) {
-  var btn = e.target.closest('button[data-action]');
-  if (!btn) return;
-  var card = btn.closest('.card');
-  var id = card.getAttribute('data-id');
-  var action = btn.getAttribute('data-action');
-  var decision = action === 'approve' ? 'approve' : 'reject';
-  var buttons = card.querySelectorAll('button');
-  buttons.forEach(function (b) { b.disabled = true; });
-  btn.innerHTML = '<span class="spinner"></span>';
-  fetch(API_ROOT + '/approval-decide', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: id, decision: decision, format: 'json' })
-  })
-    .then(function (r) { return r.json(); })
-    .then(function (data) {
-      var slot = card.querySelector('.resultSlot');
-      var ok = !!data.success;
-      slot.innerHTML = '<div class="result ' + (ok ? 'ok' : 'err') + '">' + escapeHtml(data.message || (ok ? 'Done.' : 'Something went wrong.')) + '</div>';
-      showToast(ok ? 'Done' : 'Failed');
-      setTimeout(function () {
-        card.style.transition = 'opacity .3s';
-        card.style.opacity = '0';
-        setTimeout(function () { loadPending(); }, 300);
-      }, 900);
-    })
-    .catch(function () {
-      var slot = card.querySelector('.resultSlot');
-      slot.innerHTML = '<div class="result err">Network error — try again.</div>';
-      buttons.forEach(function (b) { b.disabled = false; });
-      btn.innerHTML = action === 'approve' ? 'Approve' : 'Reject';
-    });
-});
-
-document.getElementById('refreshBtn').addEventListener('click', loadPending);
-
-loadPending();
-setInterval(loadPending, 25000);
 </script>
 </body>
 </html>
