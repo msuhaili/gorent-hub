@@ -54,6 +54,9 @@ export default {
     if (url.pathname === '/api/submit' && request.method === 'POST') {
       return proxy('/approval-submit', request);
     }
+    if (url.pathname === '/api/history' && request.method === 'GET') {
+      return proxy('/approval-history', request);
+    }
 
     return env.ASSETS.fetch(request);
   },

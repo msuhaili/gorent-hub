@@ -27,11 +27,23 @@
     padding: 4px 10px; margin-right: 4px; border-radius: 8px;
   }
   #backBtn:active { background: #1e293b; }
-  #refreshBtn {
+  #refreshBtn, #historyBtn {
     background: #1e293b; color: #e2e8f0; border: none; border-radius: 20px; padding: 8px 14px;
     font-size: 13px; font-weight: 600;
   }
-  #refreshBtn:active { background: #334155; }
+  #refreshBtn:active, #historyBtn:active { background: #334155; }
+  #historyBtn.active { background: #334155; color: #93c5fd; }
+  .hist-card {
+    background: #1e293b; border-radius: 14px; padding: 14px 16px; margin-bottom: 10px;
+    border: 1px solid #334155;
+  }
+  .hist-card .row1 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .hist-card h3 { font-size: 14px; margin: 0; font-weight: 700; color: #f1f5f9; flex: 1; }
+  .hist-status { font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 6px; white-space: nowrap; }
+  .hist-status.approved { background: #052e1a; color: #4ade80; }
+  .hist-status.rejected { background: #450a0a; color: #f87171; }
+  .hist-card .msg { font-size: 13px; color: #94a3b8; margin-top: 6px; }
+  .hist-card .when { font-size: 11px; color: #64748b; margin-top: 6px; }
   main { padding: 14px; }
   .empty { text-align: center; color: #64748b; margin-top: 60px; font-size: 15px; }
   .card {
@@ -75,9 +87,12 @@
 <header>
   <div style="display:flex; align-items:center; gap:8px;">
     <a href="/" id="backBtn" aria-label="Back to hub">&larr;</a>
-    <h1>Approvals</h1>
+    <h1 id="pageTitle">Approvals</h1>
   </div>
-  <button id="refreshBtn">Refresh</button>
+  <div style="display:flex; gap:8px;">
+    <button id="historyBtn">History</button>
+    <button id="refreshBtn">Refresh</button>
+  </div>
 </header>
 <main id="main">
   <div class="empty">Loading...</div>
@@ -123,13 +138,56 @@ function render(items) {
   }).join('');
 }
 
+var viewMode = 'pending';
+
+function formatWhen(iso) {
+  if (!iso) return '';
+  try {
+    var d = new Date(iso);
+    return d.toLocaleString('en-MY', { dateStyle: 'medium', timeStyle: 'short' });
+  } catch (e) { return iso; }
+}
+
+function renderHistory(items) {
+  if (!items.length) {
+    mainEl.innerHTML = '<div class="empty">No decisions yet.</div>';
+    return;
+  }
+  mainEl.innerHTML = items.map(function (it) {
+    return '' +
+      '<div class="hist-card">' +
+        '<div class="row1">' +
+          '<h3>' + escapeHtml(it.title) + '</h3>' +
+          '<span class="hist-status ' + escapeHtml(it.status) + '">' + escapeHtml(it.status) + '</span>' +
+        '</div>' +
+        '<div class="msg">' + escapeHtml(it.result_message || '') + '</div>' +
+        '<div class="when">' + escapeHtml(it.source || '') + ' \u00b7 ' + escapeHtml(formatWhen(it.decided_at)) + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+function loadHistory() {
+  mainEl.innerHTML = '<div class="empty">Loading...</div>';
+  return fetch('/api/history', { cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (data) { renderHistory(data.items || []); })
+    .catch(function () {
+      mainEl.innerHTML = '<div class="empty">Could not reach the server. Tap Refresh to try again.</div>';
+    });
+}
+
 function loadPending() {
+  if (viewMode !== 'pending') return Promise.resolve();
   return fetch('/api/pending', { cache: 'no-store' })
     .then(function (r) { return r.json(); })
     .then(function (data) { render(data.items || []); })
     .catch(function () {
       mainEl.innerHTML = '<div class="empty">Could not reach the server. Tap Refresh to try again.</div>';
     });
+}
+
+function loadCurrentView() {
+  return viewMode === 'pending' ? loadPending() : loadHistory();
 }
 
 mainEl.addEventListener('click', function (e) {
@@ -156,7 +214,7 @@ mainEl.addEventListener('click', function (e) {
       setTimeout(function () {
         card.style.transition = 'opacity .3s';
         card.style.opacity = '0';
-        setTimeout(function () { loadPending(); }, 300);
+        setTimeout(function () { loadCurrentView(); }, 300);
       }, 900);
     })
     .catch(function () {
@@ -167,10 +225,17 @@ mainEl.addEventListener('click', function (e) {
     });
 });
 
-document.getElementById('refreshBtn').addEventListener('click', loadPending);
+document.getElementById('historyBtn').addEventListener('click', function () {
+  viewMode = viewMode === 'pending' ? 'history' : 'pending';
+  document.getElementById('historyBtn').classList.toggle('active', viewMode === 'history');
+  document.getElementById('pageTitle').textContent = viewMode === 'history' ? 'History' : 'Approvals';
+  loadCurrentView();
+});
 
-loadPending();
-setInterval(loadPending, 25000);
+document.getElementById('refreshBtn').addEventListener('click', loadCurrentView);
+
+loadCurrentView();
+setInterval(function () { if (viewMode === 'pending') loadCurrentView(); }, 25000);
 </script>
 </body>
 </html>
