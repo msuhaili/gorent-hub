@@ -22,6 +22,11 @@
     border-bottom: 1px solid #1e293b; display: flex; align-items: center; justify-content: space-between;
   }
   header h1 { font-size: 18px; margin: 0; font-weight: 700; }
+  #backBtn {
+    color: #e2e8f0; text-decoration: none; font-size: 20px; font-weight: 700;
+    padding: 4px 10px; margin-right: 4px; border-radius: 8px;
+  }
+  #backBtn:active { background: #1e293b; }
   #refreshBtn {
     background: #1e293b; color: #e2e8f0; border: none; border-radius: 20px; padding: 8px 14px;
     font-size: 13px; font-weight: 600;
@@ -68,7 +73,10 @@
 </head>
 <body>
 <header>
-  <h1>Approvals</h1>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <a href="/" id="backBtn" aria-label="Back to hub">&larr;</a>
+    <h1>Approvals</h1>
+  </div>
   <button id="refreshBtn">Refresh</button>
 </header>
 <main id="main">
