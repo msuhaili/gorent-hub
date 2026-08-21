@@ -1,0 +1,6 @@
+wrangler.jsonc
+src/
+functions/
+.git/
+.github/
+README.md

@@ -1,0 +1,10 @@
+{
+  "name": "gorent-hub",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-08-20",
+  "assets": {
+    "directory": "./",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page"
+  }
+}
