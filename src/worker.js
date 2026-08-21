@@ -3,18 +3,19 @@ const N8N_BASE = 'https://n8n.gogolop.com/webhook';
 async function proxy(targetPath, request) {
   const init = {
     method: request.method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      // Force n8n/nginx to skip compression entirely. Compressed responses
+      // to this origin have been getting corrupted to empty bodies for
+      // real browser-style clients; requesting identity avoids that path.
+      'Accept-Encoding': 'identity',
+    },
   };
   if (request.method === 'POST') {
     init.body = await request.text();
   }
   const upstream = await fetch(N8N_BASE + targetPath, init);
   const buf = await upstream.arrayBuffer();
-  // Do NOT set an explicit Content-Length here — Cloudflare's own edge
-  // re-compresses responses for real browser clients (gzip/br), and a
-  // manually fixed Content-Length that no longer matches the compressed
-  // transfer size was corrupting the body to empty for real browsers
-  // (server-to-server clients like n8n's own HTTP node were unaffected).
   return new Response(buf, {
     status: upstream.status,
     headers: {
