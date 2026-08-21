@@ -9,13 +9,15 @@ async function proxy(targetPath, request) {
     init.body = await request.text();
   }
   const upstream = await fetch(N8N_BASE + targetPath, init);
-  // Stream the body straight through rather than buffering via .text() —
-  // buffering was returning empty content for n8n's chunked responses.
-  return new Response(upstream.body, {
+  // Fully buffer the body before responding — streaming pass-through was
+  // intermittently producing empty bodies against n8n's chunked responses.
+  const buf = await upstream.arrayBuffer();
+  return new Response(buf, {
     status: upstream.status,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store',
+      'Content-Length': String(buf.byteLength),
     },
   });
 }
