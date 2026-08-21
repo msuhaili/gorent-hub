@@ -9,15 +9,17 @@ async function proxy(targetPath, request) {
     init.body = await request.text();
   }
   const upstream = await fetch(N8N_BASE + targetPath, init);
-  // Fully buffer the body before responding — streaming pass-through was
-  // intermittently producing empty bodies against n8n's chunked responses.
   const buf = await upstream.arrayBuffer();
+  // Do NOT set an explicit Content-Length here — Cloudflare's own edge
+  // re-compresses responses for real browser clients (gzip/br), and a
+  // manually fixed Content-Length that no longer matches the compressed
+  // transfer size was corrupting the body to empty for real browsers
+  // (server-to-server clients like n8n's own HTTP node were unaffected).
   return new Response(buf, {
     status: upstream.status,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store',
-      'Content-Length': String(buf.byteLength),
     },
   });
 }
