@@ -9,8 +9,9 @@ async function proxy(targetPath, request) {
     init.body = await request.text();
   }
   const upstream = await fetch(N8N_BASE + targetPath, init);
-  const text = await upstream.text();
-  return new Response(text, {
+  // Stream the body straight through rather than buffering via .text() —
+  // buffering was returning empty content for n8n's chunked responses.
+  return new Response(upstream.body, {
     status: upstream.status,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
@@ -33,7 +34,6 @@ export default {
       return proxy('/approval-submit', request);
     }
 
-    // Everything else: serve static assets (the HTML/CSS/JS/manifest/icons)
     return env.ASSETS.fetch(request);
   },
 };
