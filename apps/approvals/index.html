@@ -118,6 +118,12 @@ function escapeHtml(s) {
   });
 }
 
+function linkify(html) {
+  return html.replace(/(https?:\/\/[^\s<]+)/g, function (url) {
+    return '<a href="' + url + '" target="_blank" rel="noopener" style="color:#93c5fd; word-break:break-all;">' + url + '</a>';
+  });
+}
+
 function render(items) {
   if (!items.length) {
     mainEl.innerHTML = '<div class="empty">Nothing waiting on you right now.</div>';
@@ -128,7 +134,7 @@ function render(items) {
       '<div class="card" data-id="' + it.id + '">' +
         '<span class="source">' + escapeHtml(it.source || 'general') + '</span>' +
         '<h2>' + escapeHtml(it.title) + '</h2>' +
-        '<div class="body">' + escapeHtml(it.body) + '</div>' +
+        '<div class="body">' + linkify(escapeHtml(it.body)) + '</div>' +
         '<div class="btnrow">' +
           '<button class="btn approve" data-action="approve">Approve</button>' +
           '<button class="btn reject" data-action="reject">Reject</button>' +
