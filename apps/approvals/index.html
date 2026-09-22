@@ -167,6 +167,7 @@ function renderHistory(items) {
           '<span class="hist-status ' + escapeHtml(it.status) + '">' + escapeHtml(it.status) + '</span>' +
         '</div>' +
         '<div class="msg">' + escapeHtml(it.result_message || '') + '</div>' +
+        (it.comment ? '<div class="msg" style="color:#93c5fd;">Comment: ' + escapeHtml(it.comment) + '</div>' : '') +
         '<div class="when">' + escapeHtml(it.source || '') + ' \u00b7 ' + escapeHtml(formatWhen(it.decided_at)) + '</div>' +
       '</div>';
   }).join('');
@@ -203,13 +204,18 @@ mainEl.addEventListener('click', function (e) {
   var id = card.getAttribute('data-id');
   var action = btn.getAttribute('data-action');
   var decision = action === 'approve' ? 'approve' : 'reject';
+  var comment = '';
+  if (decision === 'reject') {
+    comment = window.prompt('Optional: why are you rejecting this? Your note is saved and used to improve future scripts.', '') || '';
+    comment = comment.trim();
+  }
   var buttons = card.querySelectorAll('button');
   buttons.forEach(function (b) { b.disabled = true; });
   btn.innerHTML = '<span class="spinner"></span>';
   fetch('/api/decide', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: id, decision: decision, format: 'json' })
+    body: JSON.stringify({ id: id, decision: decision, comment: comment, format: 'json' })
   })
     .then(function (r) { return r.json(); })
     .then(function (data) {
